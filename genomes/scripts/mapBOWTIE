@@ -1,9 +1,9 @@
 #!/bin/bash
 
-/opt/hpc/bin/bowtie --chunkmbs=400 ${ASSEMBLY}.fa -f -S -t -m1 --best --strata -p4 ${IN}_${LENGTH}_frags | awk -v chr=${IN} '{if (($5 >= 25) && ($3 == chr)) print $3"\t"$4}' | sort -k2,2g > ${IN}_${LENGTH}_bowtie_done
+/share/home/enzedeng/software/bowtie/bowtie --chunkmbs=400 ${ASSEMBLY}.fa -f -S -t -m1 --best --strata -p4 ${IN}_${LENGTH}_frags | awk -v chr=${IN} '{if (($5 >= 25) && ($3 == chr)) print $3"\t"$4}' | sort -k2,2g > ${IN}_${LENGTH}_bowtie_done
 
 for size in `cat binsizes`; do
-  /opt/uge/bin/lx-amd64/qsub -V -cwd -l m_mem_free=3G -v LENGTH=$LENGTH -v SIZE=$size -v TYPE=bowtie -v IN=$IN /seq/schatz/mschatz/ginkgo/genomes/scripts/binBOWTIE
+  qsub -V -cwd -l h_vmem=3G -v LENGTH=$LENGTH -v SIZE=$size -v TYPE=bowtie -v IN=$IN /share/home/enzedeng/software/ginkgo/genomes/scripts/binBOWTIE
 done
 
 touch bowtie_done

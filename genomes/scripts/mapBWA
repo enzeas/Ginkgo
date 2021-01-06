@@ -1,8 +1,8 @@
 #!/bin/bash
 
-/opt/hpc/bin/bwa aln -t 4 ${ASSEMBLY}.fa ${IN}_${LENGTH}_frags > ${TMPDIR}/${IN}_${LENGTH}_frags.sai
+/share/home/share/software/bwa-0.7.17/bin/bwa aln -t 4 ${ASSEMBLY}.fa ${IN}_${LENGTH}_frags > ${TMPDIR}/${IN}_${LENGTH}_frags.sai
 
-/opt/hpc/bin/bwa samse -n 1 ${ASSEMBLY}.fa ${TMPDIR}/${IN}_${LENGTH}_frags.sai ${IN}_${LENGTH}_frags | \
+/share/home/share/software/bwa-0.7.17/bin/bwa samse -n 1 ${ASSEMBLY}.fa ${TMPDIR}/${IN}_${LENGTH}_frags.sai ${IN}_${LENGTH}_frags | \
   grep "NM:i:0" | \
   awk '$5 >= 30{print $3"\t"$4}' | \
   grep -w $IN | \
@@ -11,7 +11,7 @@
 rm ${TMPDIR}/${IN}_${LENGTH}_frags.sai
 
 for size in `cat binsizes`; do
-  /opt/uge/bin/lx-amd64/qsub -V -cwd -l m_mem_free=3G -v LENGTH=$LENGTH -v SIZE=$size -v TYPE=bwa -v IN=$IN /seq/schatz/mschatz/ginkgo/genomes/scripts/binBWA
+  qsub -V -cwd -A enzedeng -N bin-$IN -l h_vmem=5G -v LENGTH=$LENGTH -v SIZE=$size -v TYPE=bwa -v IN=$IN /share/home/enzedeng/software/ginkgo/genomes/scripts/binBWA -q all.q@n0$(((RANDOM%3)+1))
 done
 
 touch bwa_done
