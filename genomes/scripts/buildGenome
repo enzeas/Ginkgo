@@ -4,17 +4,18 @@
 ####################################################
 
 # List of read lengths to consider
-READLEN=(48 76 101 150)
+#READLEN=(48 76 101 150)
+READLEN=(150)
 
 # List of bin sizes (uniquely mappable bases) to consider
-BINSIZE=(10000 25000 50000 100000 175000 250000 500000 1000000 2500000 5000000 10000000)
-#BINSIZE=(10000)
+#BINSIZE=(10000 25000 50000 100000 175000 250000 500000 1000000 2500000 5000000 10000000)
+BINSIZE=(1000000)
 
 # This is the username that will be monitored for qsub
-USERNAME=mschatz
+USERNAME=enzedeng
 
 # Path to rest of scripts
-SCRIPTS=/seq/schatz/mschatz/ginkgo/genomes/scripts
+SCRIPTS=/share/home/enzedeng/software/ginkgo/genomes/scripts
 
 # Time out for SGE
 export SGE_JSV_TIMEOUT=120
@@ -44,8 +45,8 @@ fi
 if [ ! -f bwaBUILT ]
 then
   echo -e "\n Step (3/8): Building Index Files"
-  /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBWA
-  /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBOWTIE
+  qsub -cwd -l h_vmem=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBWA -q all.q@n0$(((RANDOM%8)+1))
+  #qsub -cwd -l h_vmem=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBOWTIE -q all.q@n0$(((RANDOM%8)+1))
 fi
 
 for len in ${READLEN[*]}; do
@@ -53,7 +54,7 @@ for len in ${READLEN[*]}; do
   then
     echo -e "\n Step (4/8): Simulating $len bp Reads"
     while read line; do 
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=3G -v IN=$line -v LENGTH=$len $SCRIPTS/processGenome
+      qsub -cwd -l h_vmem=3G -v IN=$line -v LENGTH=$len $SCRIPTS/processGenome -q all.q@n0$(((RANDOM%8)+1))
     done < list
     touch frag_${len}_done
   fi
@@ -98,12 +99,14 @@ for size in ${BINSIZE[*]}; do
 done
 
 # Check to ensure both indexes have been build and reads have been sampled before proceeding
-while [ ! -f "bwaBUILT" ] || [ ! -f "bowtieBUILT" ] || [ `qstat | grep $USERNAME | grep process | wc -l` -gt 0 ] ; do
+#while [ ! -f "bwaBUILT" ] || [ ! -f "bowtieBUILT" ] || [ `qstat | grep $USERNAME | grep process | wc -l` -gt 0 ] ; do
+while [ ! -f "bwaBUILT" ] || [ `qstat | grep $USERNAME | grep process | wc -l` -gt 0 ] ; do
   sleep 30
 done
 
 
-if [ ! -f bwa_done ] || [ ! -f bowtie_done ]
+#if [ ! -f bwa_done ] || [ ! -f bowtie_done ]
+if [ ! -f bwa_done ]
 then
   ## Create a file of binsizes to compute
   rm -f binsizes
@@ -114,8 +117,8 @@ then
   echo -e "\n Step (7/8): Mapping Simulated Reads To Reference and Bin"
   while read line; do
     for len in ${READLEN[*]}; do
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=2G -pe threads 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBOWTIE
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=2G -l tmp_free=100G -pe threads 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBWA
+      #qsub -cwd -l h_vmem=2G -pe smp 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBOWTIE -q all.q@n0$(((RANDOM%8)+1))
+      qsub -cwd -l h_vmem=2G -pe smp 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBWA -q all.q@n0$(((RANDOM%8)+1))
     done
   done < list
 
@@ -125,7 +128,8 @@ fi
 
 
 # Check to ensure reads have been mapped and tested for uniqueness
-while [ ! -f bowtie_done ] || [ ! -f bwa_done ] || [ `qstat | grep $USERNAME | grep binB | wc -l` -gt 0 ] ; do
+#while [ ! -f bowtie_done ] || [ ! -f bwa_done ] || [ `qstat | grep $USERNAME | grep map | wc -l` -gt 0 ] ; do
+while [ ! -f bwa_done ] || [ `qstat | grep $USERNAME | grep map | wc -l` -gt 0 ] ; do
   sleep 30
 done
 
@@ -135,7 +139,8 @@ done
 
 for SIZE in ${BINSIZE[*]}; do
   for LENGTH in ${READLEN[*]}; do
-    for TYPE in "bwa" "bowtie"; do
+    #for TYPE in "bwa" "bowtie"; do
+    for TYPE in "bwa"; do
       if [ ! -f bounds_variable_${SIZE}_${LENGTH}_${TYPE} ]
       then
         echo -e "\n Step (8/8): Creating variable length ${SIZE} bins with ${LENGTH} bp reads for $TYPE"
